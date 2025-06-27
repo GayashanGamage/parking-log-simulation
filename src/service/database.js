@@ -64,10 +64,21 @@ export const updateSensorStatus = async (id, sensorStatus) => {
 }   
 
 export const updateSensorTrigger = async (sensorOneId, sensorTwoId, sensorStatus) => {
+    console.log(sensorOneId, sensorTwoId, sensorStatus)
     const { data, error } = await supabase
         .from('Sensors')
         .update({ triggered : sensorStatus })
         .in('id' , [sensorOneId, sensorTwoId])
         .select() 
+    return {data, error}
+}
+
+export const updateBatteryStatus = async (id, value) => {
+    console.log(id, value)
+    const { data, error } = await supabase
+        .from('Sensors')
+        .update({ battery: value })
+        .eq('id', id)
+        .select()
     return {data, error}
 }
