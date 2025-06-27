@@ -115,7 +115,7 @@
             </div>
             <button class="py-1 px-2 rounded-sm text-white uppercase"
               :class="{ 'bg-green-600': item.Sensors[0].triggered == true && item.Sensors[1].triggered == true, 'bg-red-500': item.Sensors[0].triggered == false && item.Sensors[1].triggered == false }"
-              @click="changeTrigger(item.Sensors[0].id, item.Sensors[1].id, item.Sensors[0].triggered, 'electricSection', parkingIndex, sensorIndex)"><span
+              @click="changeTrigger(item.Sensors[0].id, item.Sensors[1].id, item.Sensors[0].triggered, 'electricSection', parkingIndex, sensorIndex, item.id)"><span
                 class="text-xs">triggered
                 ? </span>{{
                   item.Sensors[0].triggered ==
@@ -161,7 +161,7 @@
             </div>
             <button class="py-1 px-2 rounded-sm text-white uppercase"
               :class="{ 'bg-green-600': item.Sensors[0].triggered == true && item.Sensors[1].triggered == true, 'bg-red-500': item.Sensors[0].triggered == false && item.Sensors[1].triggered == false }"
-              @click="changeTrigger(item.Sensors[0].id, item.Sensors[1].id, item.Sensors[0].triggered, 'disabilitySection', parkingIndex, sensorIndex)"><span
+              @click="changeTrigger(item.Sensors[0].id, item.Sensors[1].id, item.Sensors[0].triggered, 'disabilitySection', parkingIndex, sensorIndex, item.id)"><span
                 class="text-xs">triggered
                 ? </span>{{
                   item.Sensors[0].triggered ==
@@ -207,7 +207,7 @@
             </div>
             <button class="py-1 px-2 rounded-sm text-white uppercase"
               :class="{ 'bg-green-600': item.Sensors[0].triggered == true && item.Sensors[1].triggered == true, 'bg-red-500': item.Sensors[0].triggered == false && item.Sensors[1].triggered == false }"
-              @click="changeTrigger(item.Sensors[0].id, item.Sensors[1].id, item.Sensors[0].triggered, 'privetSection', parkingIndex, sensorIndex)"><span
+              @click="changeTrigger(item.Sensors[0].id, item.Sensors[1].id, item.Sensors[0].triggered, 'privetSection', parkingIndex, sensorIndex, item.id)"><span
                 class="text-xs">triggered
                 ? </span>{{
                   item.Sensors[0].triggered ==
@@ -252,7 +252,7 @@
             </div>
             <button class="py-1 px-2 rounded-sm text-white uppercase"
               :class="{ 'bg-green-600': item.Sensors[0].triggered == true && item.Sensors[1].triggered == true, 'bg-red-500': item.Sensors[0].triggered == false && item.Sensors[1].triggered == false }"
-              @click="changeTrigger(item.Sensors[0].id, item.Sensors[1].id, item.Sensors[0].triggered, 'publicSection', parkingIndex, sensorIndex)"><span
+              @click="changeTrigger(item.Sensors[0].id, item.Sensors[1].id, item.Sensors[0].triggered, 'publicSection', parkingIndex, sensorIndex, item.id)"><span
                 class="text-xs">triggered
                 ? </span>{{
                   item.Sensors[0].triggered ==
@@ -267,8 +267,9 @@
 
 <script setup>
 // import { getSensorData } from '@/service/database';
-import { assignParkingLot, checkVehicleAvailability, gateToggleAction, getJoinedSensorData, updateBatteryStatus, updateSensorStatus, updateSensorTrigger } from '@/service/database';
+import { assignParkingLot, checkVehicleAvailability, gateToggleAction, getJoinedSensorData, insertVehicleEntryRocode, setAvailabilityOnSlot, updateBatteryStatus, updateSensorStatus, updateSensorTrigger } from '@/service/database';
 import { onBeforeMount, ref } from 'vue';
+
 
 const electricSection = ref([])
 const disabilitySection = ref([])
@@ -377,11 +378,13 @@ const changeSensorBattery = async (id, statuss, category, parkingIndex, sensorIn
   }
 }
 
-const changeTrigger = async (idOne, idTwo, triggerStatus, category, categoryIndex) => {
+const changeTrigger = async (idOne, idTwo, triggerStatus, category, categoryIndex, sss, slotId) => {
+  console.log(slotId)
   // console.log(idOne, idTwo, triggerStatus, category, categoryIndex)
   const { data, error } = await updateSensorTrigger(idOne, idTwo, !triggerStatus)
   // console.log(data, error)
   if (data != null) {
+    const { slotData, error } = await setAvailabilityOnSlot(slotId, !triggerStatus)
     if (category == 'electricSection') {
       electricSection.value[categoryIndex].Sensors[0].triggered = !triggerStatus
       electricSection.value[categoryIndex].Sensors[1].triggered = !triggerStatus
@@ -431,13 +434,18 @@ const checkVehicle = async () => {
   const { data, error } = await checkVehicleAvailability(vehicleNumberPlate.value)
   if (data.length == 1) {
     const { slotData, error } = await assignParkingLot(data[0].vehicleType)
-    if (slotData.length >= 1) {
-      servedSlot.value = slotData[0].id
-      entrySuccess.value = true
-      gateToggle.value = true
-    } else if (slotData.length == 0) {
-      outOfSpace.value = true
-      gateToggle.value = false
+    servedSlot.value = slotData[0].id
+    if (slotData != null) {
+      const { vData, error } = await insertVehicleEntryRocode(vehicleNumberPlate.value, servedSlot.value)
+      if (vData != null) {
+        if (slotData.length >= 1) {
+          entrySuccess.value = true
+          gateToggle.value = true
+        } else if (slotData.length == 0) {
+          outOfSpace.value = true
+          gateToggle.value = false
+        }
+      }
     }
   } else if (data.length == 0) {
     gateToggle.value = false

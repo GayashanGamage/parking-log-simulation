@@ -74,7 +74,7 @@ export const updateSensorTrigger = async (sensorOneId, sensorTwoId, sensorStatus
 }
 
 export const updateBatteryStatus = async (id, value) => {
-    console.log(id, value)
+    // console.log(id, value)
     const { data, error } = await supabase
         .from('Sensors')
         .update({ battery: value })
@@ -107,4 +107,40 @@ export const assignParkingLot = async (vehicleType) => {
         .eq('type', vehicleType)
         .eq('available', true)
     return { slotData, error}
+}
+
+export const setAvailabilityOnSlot = async (id, value) => {
+    const { data : slotData, error } = await supabase
+        .from('Slots')
+        .update({available: value })
+        .eq('id', id)
+        .select()
+    console.log(slotData)
+    return {slotData, error}
+}
+
+// export const insertVehicleEntryRocode = async (vid, sid) => {
+//     const { data : vData, error } = await supabase
+//         .from('VehicleEntryRecords')
+//         .insert([
+//             { vehicleId: vid, entryTime: new Date().toISOString(), exitTime : null, slotId: sid },
+//         ])
+//   .select()
+//   return {vData, error}
+// }
+export const insertVehicleEntryRocode = async (vid, sid) => {
+    console.log(vid, sid)
+  const { data: vData, error } = await supabase
+    .from('VehicleEntryRecords')
+    .insert([
+      { 
+        vehicleId: vid, 
+        entryTime: new Date().toISOString(), 
+        exitTime: null, 
+        slotId: sid 
+      }
+    ])
+    .select()
+  
+  return { vData, error }
 }
