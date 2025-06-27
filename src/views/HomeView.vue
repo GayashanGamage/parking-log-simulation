@@ -52,12 +52,15 @@
       </div> -->
       <div class="flex flex-col gap-2 border rounded-sm p-4 px-15 text-center">
         <h3 class="text-3xl uppercase font-bold pb-15">Exite gate</h3>
+        <!-- message showing functionality -->
         <div
           :class="{ 'flex flex-col gap-2 p-2 rounded-sm bg-amber-100': exiteGateToggle == false, 'flex flex-col gap-2 p-2 rounded-sm bg-green-200': exiteGateToggle == true }">
           <p class="text-xs" v-if="!exiteGateToggle">Gate <span class="text-lg font-black">Close</span></p>
-          <p v-if="exiteGateToggle">this vehicle is avaible</p>
           <p class="text-xs" v-if="exiteGateToggle">Gate <span class="text-lg font-black">Open</span></p>
+          <p v-if="exiteGateToggle">successfull transaction - thankyou</p>
+          <p class="" v-if="exitPay">your parking free is {{ parkingFee }}</p>
         </div>
+        <button class="border" v-if="parkingFreeButton" @click="payFree">Pay</button>
         <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100" v-if="exiteGateLPR">
           <p class="text-xs">Licen plate detect sensor</p>
           <input type="text" class="border text-center" v-model="vehicleNumberPlate">
@@ -267,9 +270,8 @@
 
 <script setup>
 // import { getSensorData } from '@/service/database';
-import { assignParkingLot, checkVehicleAvailability, gateToggleAction, getJoinedSensorData, insertVehicleEntryRocode, setAvailabilityOnSlot, updateBatteryStatus, updateSensorStatus, updateSensorTrigger } from '@/service/database';
+import { assignParkingLot, checkVehicleAvailability, createParkingFee, gateToggleAction, getJoinedSensorData, insertVehicleEntryRocode, setAvailabilityOnSlot, updateBatteryStatus, updateExitTime, updateSensorStatus, updateSensorTrigger } from '@/service/database';
 import { onBeforeMount, ref } from 'vue';
-
 
 const electricSection = ref([])
 const disabilitySection = ref([])
@@ -283,12 +285,18 @@ const entryGateLPR = ref(false)
 const exiteGateLPR = ref(false)
 const gateToggle = ref(false)
 const exiteGateToggle = ref(false)
+const parkingFee = ref(0)
+const parkingFreeButton = ref(false)
+
+// exit vehicle related data
+const exiteVehicleRocodeId = ref()
 
 // gate message toggle functionality
 const entrySuccess = ref(false)
 const entryDenied = ref(false)
 const outOfSpace = ref(false)
 const servedSlot = ref(null)
+
 const exitSuccess = ref(false)
 const exitPay = ref(false)
 const exitDenied = ref(false)
@@ -434,8 +442,8 @@ const checkVehicle = async () => {
   const { data, error } = await checkVehicleAvailability(vehicleNumberPlate.value)
   if (data.length == 1) {
     const { slotData, error } = await assignParkingLot(data[0].vehicleType)
-    servedSlot.value = slotData[0].id
     if (slotData != null) {
+      servedSlot.value = slotData[0].id
       const { vData, error } = await insertVehicleEntryRocode(vehicleNumberPlate.value, servedSlot.value)
       if (vData != null) {
         if (slotData.length >= 1) {
@@ -456,14 +464,26 @@ const checkVehicle = async () => {
 
 // this is for check vehicle in 'EXITE' gate
 const checkVahicleExit = async () => {
-  const { data, error } = await checkVehicleAvailability(vehicleNumberPlate.value)
-  console.log(data, error)
-  console.log(data.length)
-  if (data.length == 1) {
-    exiteGateToggle.value = true
-  } else if (data.length == 0) {
+  // const { data, error } = await checkVehicleAvailability(vehicleNumberPlate.value)
+  // console.log(data, error)
+  // console.log(data.length)
+  const { vData, error } = await updateExitTime(vehicleNumberPlate.value)
+  if (vData.length != 0) {
+    // recode the exite time in 'vehicleEntryRecode' and calculate parking free
+    exiteVehicleRocodeId.value = vData[0].id
+    parkingFee.value = Math.floor(new Date(vData[0].exitTime) - new Date(vData[0].entryTime)) / 1000 * 2;
+    exitPay.value = true
+    parkingFreeButton.value = true
+  } else if (vData.length == 0) {
     exiteGateToggle.value = false
   }
+}
+
+const payFree = async () => {
+  const { feeData, error } = await createParkingFee(vehicleNumberPlate.value, parkingFee.value, exiteVehicleRocodeId.value)
+  exiteGateToggle.value = true
+  exitPay.value = false
+  parkingFee.value = 0
 }
 
 </script>

@@ -129,7 +129,6 @@ export const setAvailabilityOnSlot = async (id, value) => {
 //   return {vData, error}
 // }
 export const insertVehicleEntryRocode = async (vid, sid) => {
-    console.log(vid, sid)
   const { data: vData, error } = await supabase
     .from('VehicleEntryRecords')
     .insert([
@@ -143,4 +142,29 @@ export const insertVehicleEntryRocode = async (vid, sid) => {
     .select()
   
   return { vData, error }
+}
+
+export const updateExitTime =  async (vid ) => {
+    const { data : vData, error } = await supabase
+        .from('VehicleEntryRecords')
+        .update({ exitTime : new Date().toISOString() })
+        .eq('vehicleId', vid)
+        .select()
+    console.log(vData, error)
+    return {vData, error}
+}
+
+export const createParkingFee = async (vid, amount, entryRecode) => {
+    const { data: feeData, error } = await supabase
+        .from('NormalPayment')
+        .insert([
+        { 
+            vehicleId: vid, 
+            created_at: new Date().toISOString(), 
+            amount: Math.floor(amount), 
+            vehicle_entry_record_id: entryRecode 
+        }
+        ])
+        .select()
+    return { feeData, error }
 }
