@@ -9,22 +9,33 @@
       <!-- open gate -->
       <div class="flex flex-col gap-2 border rounded-sm p-4 px-15 text-center">
         <h3 class="text-3xl uppercase font-bold pb-15">Entry gate</h3>
-        <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100">
+        <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100 min-w-[260px]">
           <p class="text-xs">Inductive Loop sensor</p>
-          <button class="border">on</button>
+          <button class="py-3 rounded-sm animate-pulse bg-gray-300" v-if="dataLoding"></button>
+          <button class="text-white rounded-sm"
+            :class="{ 'bg-red-500': openGate.Sensors[0].triggered == false, 'bg-green-600': openGate.Sensors[0].triggered == true }"
+            v-if="!dataLoding" @click="openGateToggle(openGate.Sensors[0].id, openGate.Sensors[0].triggered)">{{
+              openGate.Sensors[0].triggered == false ?
+                'Close' : 'Open' }}</button>
         </div>
-        <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100">
+        <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100" v-if="entryGateLPR">
           <p class="text-xs">Licen plate detect sensor</p>
-          <input type="text" class="border">
-          <button class="border">Check vehicle</button>
+          <input type="text" class="border text-center" v-model="vehicleNumberPlate">
+          <button class="py-1 rounded-sm bg-orange-300 hover:bg-orange-200" @click="checkVehicle">Check vehicle</button>
         </div>
-        <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100">
-          <p class="text-xs">Gate <span class="text-lg font-black">Close</span></p>
+        <!-- message showing functionality -->
+        <div
+          :class="{ 'flex flex-col gap-2 p-2 rounded-sm bg-amber-100': gateToggle == false, 'flex flex-col gap-2 p-2 rounded-sm bg-green-200': gateToggle == true }">
+          <p class="text-xs" v-if="!gateToggle">Gate <span class="text-lg font-black">Close</span></p>
+          <p v-if="entrySuccess">your slot is {{ servedSlot }}</p>
+          <p v-if="entryDenied">sorry.. this vahicle plate is not available</p>
+          <p v-if="outOfSpace">sorry.. Out of parking lots at this moment</p>
+          <p class="text-xs" v-if="gateToggle">Gate <span class="text-lg font-black">Open</span></p>
         </div>
       </div>
 
-      <!-- open gate -->
-      <div class="flex flex-col gap-2 border rounded-sm p-4 px-15 text-center">
+      <!-- close gate -->
+      <!-- <div class="flex flex-col gap-2 border rounded-sm p-4 px-15 text-center">
         <h3 class="text-3xl uppercase font-bold pb-15">Exit gate</h3>
         <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100">
           <p class="text-xs">Gate <span class="text-lg font-black">Close</span></p>
@@ -38,7 +49,32 @@
           <p class="text-xs">Inductive Loop sensor</p>
           <button class="border">on</button>
         </div>
+      </div> -->
+      <div class="flex flex-col gap-2 border rounded-sm p-4 px-15 text-center">
+        <h3 class="text-3xl uppercase font-bold pb-15">Exite gate</h3>
+        <div
+          :class="{ 'flex flex-col gap-2 p-2 rounded-sm bg-amber-100': exiteGateToggle == false, 'flex flex-col gap-2 p-2 rounded-sm bg-green-200': exiteGateToggle == true }">
+          <p class="text-xs" v-if="!exiteGateToggle">Gate <span class="text-lg font-black">Close</span></p>
+          <p v-if="exiteGateToggle">this vehicle is avaible</p>
+          <p class="text-xs" v-if="exiteGateToggle">Gate <span class="text-lg font-black">Open</span></p>
+        </div>
+        <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100" v-if="exiteGateLPR">
+          <p class="text-xs">Licen plate detect sensor</p>
+          <input type="text" class="border text-center" v-model="vehicleNumberPlate">
+          <button class="py-1 rounded-sm bg-orange-300 hover:bg-orange-200" @click="checkVahicleExit">Check
+            vehicle</button>
+        </div>
+        <div class="flex flex-col gap-2 p-2 rounded-sm bg-amber-100 min-w-[260px]">
+          <p class="text-xs">Inductive Loop sensor</p>
+          <button class="py-3 rounded-sm animate-pulse bg-gray-300" v-if="dataLoding"></button>
+          <button class="text-white rounded-sm"
+            :class="{ 'bg-red-500': closeGate.Sensors[0].triggered == false, 'bg-green-600': closeGate.Sensors[0].triggered == true }"
+            v-if="!dataLoding" @click="closeGateToggle(closeGate.Sensors[0].id, closeGate.Sensors[0].triggered)">{{
+              closeGate.Sensors[0].triggered == false ?
+                'Close' : 'Open' }}</button>
+        </div>
       </div>
+
     </div>
 
     <!-- parking area -->
@@ -231,13 +267,36 @@
 
 <script setup>
 // import { getSensorData } from '@/service/database';
-import { getJoinedSensorData, updateBatteryStatus, updateSensorStatus, updateSensorTrigger } from '@/service/database';
+import { assignParkingLot, checkVehicleAvailability, gateToggleAction, getJoinedSensorData, updateBatteryStatus, updateSensorStatus, updateSensorTrigger } from '@/service/database';
 import { onBeforeMount, ref } from 'vue';
 
 const electricSection = ref([])
 const disabilitySection = ref([])
 const privetSection = ref([])
 const publicSection = ref([])
+const openGate = ref()
+const closeGate = ref()
+
+// gate related data
+const entryGateLPR = ref(false)
+const exiteGateLPR = ref(false)
+const gateToggle = ref(false)
+const exiteGateToggle = ref(false)
+
+// gate message toggle functionality
+const entrySuccess = ref(false)
+const entryDenied = ref(false)
+const outOfSpace = ref(false)
+const servedSlot = ref(null)
+const exitSuccess = ref(false)
+const exitPay = ref(false)
+const exitDenied = ref(false)
+
+// skeleton animations
+const dataLoding = ref(true)
+
+// user input
+const vehicleNumberPlate = ref('')
 
 // get joint data
 const getSensorData = async () => {
@@ -251,9 +310,13 @@ const getSensorData = async () => {
       privetSection.value.push(data[i])
     } else if (data[i].id.slice(0, 1) == 'A') {
       publicSection.value.push(data[i])
+    } else if (data[i].id.slice(0, 2) == 'G1') {
+      openGate.value = data[i]
+    } else if (data[i].id.slice(0, 2) == 'G2') {
+      closeGate.value = data[i]
     }
   }
-  console.log(electricSection.value.length)
+  dataLoding.value = !dataLoding.value
 }
 
 onBeforeMount(async () => {
@@ -332,6 +395,66 @@ const changeTrigger = async (idOne, idTwo, triggerStatus, category, categoryInde
       publicSection.value[categoryIndex].Sensors[0].triggered = !triggerStatus
       publicSection.value[categoryIndex].Sensors[1].triggered = !triggerStatus
     }
+  }
+}
+
+const openGateToggle = async (id, value) => {
+  const { data, error } = await gateToggleAction(id, !value)
+  if (data != null) {
+    openGate.value.Sensors[0].triggered = !value
+    entryGateLPR.value = !entryGateLPR.value
+  }
+}
+
+const closeGateToggle = async (id, value) => {
+  const { data, error } = await gateToggleAction(id, !value)
+  if (data != null) {
+    closeGate.value.Sensors[0].triggered = !value
+    exiteGateLPR.value = !exiteGateLPR.value
+  }
+}
+
+const removeAllError = () => {
+  entrySuccess.value = false
+  entryDenied.value = false
+  outOfSpace.value = false
+  servedSlot.value = false
+  exitSuccess.value = false
+  exitPay.value = false
+  exitDenied.value = false
+}
+
+// this is for check vehicle in 'ENTRY' gate
+const checkVehicle = async () => {
+  // remove all existing error messages on Entry and Exit gates
+  removeAllError()
+  const { data, error } = await checkVehicleAvailability(vehicleNumberPlate.value)
+  if (data.length == 1) {
+    const { slotData, error } = await assignParkingLot(data[0].vehicleType)
+    if (slotData.length >= 1) {
+      servedSlot.value = slotData[0].id
+      entrySuccess.value = true
+      gateToggle.value = true
+    } else if (slotData.length == 0) {
+      outOfSpace.value = true
+      gateToggle.value = false
+    }
+  } else if (data.length == 0) {
+    gateToggle.value = false
+    entryDenied.value = true
+
+  }
+}
+
+// this is for check vehicle in 'EXITE' gate
+const checkVahicleExit = async () => {
+  const { data, error } = await checkVehicleAvailability(vehicleNumberPlate.value)
+  console.log(data, error)
+  console.log(data.length)
+  if (data.length == 1) {
+    exiteGateToggle.value = true
+  } else if (data.length == 0) {
+    exiteGateToggle.value = false
   }
 }
 

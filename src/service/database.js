@@ -82,3 +82,29 @@ export const updateBatteryStatus = async (id, value) => {
         .select()
     return {data, error}
 }
+
+export const gateToggleAction = async (sensorId, value) => {
+    const { data, error } = await supabase
+        .from('Sensors')
+        .update({ triggered : value })
+        .eq('id', sensorId)
+        .select()
+    return { data, error}
+}
+
+export const checkVehicleAvailability = async (regNumber) => {
+    let { data, error } = await supabase
+        .from('Vehicle')
+        .select('*')
+        .eq('id', regNumber)
+    return {data, error}
+}
+
+export const assignParkingLot = async (vehicleType) => {
+    let { data:slotData, error } = await supabase
+        .from('Slots')
+        .select('*')
+        .eq('type', vehicleType)
+        .eq('available', true)
+    return { slotData, error}
+}
